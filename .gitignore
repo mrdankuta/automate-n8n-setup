@@ -1,0 +1,7 @@
+.terraform/
+.vscode/
+.terraform.*
+*.tfvars
+*.tfstate
+*.tfstate.*
+*.sh
