@@ -2,23 +2,25 @@
 - name: Install and configure n8n with Docker and Caddy
   hosts: all
   remote_user: root
+  vars_files:
+    - vars.yml
   gather_facts: true
 
   tasks:
     - name: Create new non-root user
       user:
-        name: dankuta
+        name: "{{user}}"
         group: sudo
 
     - name: Stop request for passwords from user's sudo commands
       copy:
-        content: "dankuta ALL=(ALL) NOPASSWD:ALL"
-        dest: "/etc/sudoers.d/dankuta"
+        content: "{{user}} ALL=(ALL) NOPASSWD:ALL"
+        dest: "/etc/sudoers.d/{{user}}"
         mode: '0440'
     
     - name: Add SSH Key to new user
       authorized_key:
-        user: dankuta
+        user: "{{user}}"
         state: present
         key: "{{ lookup('file', pub_key) }}"
 
@@ -57,21 +59,21 @@
     - name: Clone n8n repository
       git:
         repo: https://github.com/n8n-io/n8n-docker-caddy.git
-        dest: /home/dankuta/n8n-docker-caddy
+        dest: /home/{{user}}/n8n-docker-caddy
         version: main
 
     - name: Set ownership of the cloned files
       file:
-        path: /home/dankuta/n8n-docker-caddy
-        owner: dankuta
+        path: /home/{{user}}/n8n-docker-caddy
+        owner: "{{user}}"
         recurse: yes
     
-    - name: Add dankuta to the Docker group
+    - name: Add user to the Docker group
       user:
-        name: dankuta
+        name: "{{user}}"
         groups: docker
         append: yes
-      when: "'docker' in groups"
+      # when: "'docker' in groups"
 
     - name: Create Docker volumes
       docker_volume:
@@ -91,27 +93,27 @@
 
     - name: Update .env file
       replace:
-        path: /home/dankuta/n8n-docker-caddy/.env
+        path: /home/{{user}}/n8n-docker-caddy/.env
         regexp: "{{ item.regexp }}"
         replace: "{{ item.replace }}"
       loop:
-        - { regexp: 'DATA_FOLDER=/<directory-path>', replace: 'DATA_FOLDER=/home/dankuta' }
-        - { regexp: 'DOMAIN_NAME=example.com', replace: 'DOMAIN_NAME=lugarrico.com' }
-        - { regexp: 'GENERIC_TIMEZONE=Europe/Berlin', replace: 'GENERIC_TIMEZONE=Africa/Lagos' }
+        - { regexp: 'DATA_FOLDER=/<directory-path>', replace: 'DATA_FOLDER=/home/{{user}}' }
+        - { regexp: 'DOMAIN_NAME=example.com', replace: 'DOMAIN_NAME={{domain}}.{{domain_suffix}}' }
+        - { regexp: 'GENERIC_TIMEZONE=Europe/Berlin', replace: 'GENERIC_TIMEZONE={{timezone}}' }
 
     - name: Update Caddyfile
       replace:
-        path: /home/dankuta/n8n-docker-caddy/caddy_config/Caddyfile
+        path: /home/{{user}}/n8n-docker-caddy/caddy_config/Caddyfile
         regexp: 'n8n.<domain>.<suffix>'
-        replace: 'n8n.lugarrico.com'
+        replace: 'n8n.{{domain}}.{{domain_suffix}}'
 
     - name: Set ownership for n8n directory
       file:
-        path: /home/dankuta/n8n-docker-caddy
-        owner: dankuta
+        path: /home/{{user}}/n8n-docker-caddy
+        owner: "{{user}}"
         recurse: yes
 
     - name: Bring up Docker containers
       command: docker-compose up -d
       args:
-        chdir: /home/dankuta/n8n-docker-caddy
+        chdir: /home/{{user}}/n8n-docker-caddy
