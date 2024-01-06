@@ -34,6 +34,11 @@
 
     - name: Install Docker and Docker Compose
       block:
+        - name: Update package manager repositories (apt or yum)
+          package:
+            update_cache: yes
+          changed_when: false
+
         - name: Install Docker on Debian-based systems
           apt:
             name: docker.io
@@ -55,6 +60,7 @@
           poll: 0
 
       when: ansible_os_family == 'Debian' or ansible_os_family == 'RedHat'
+
 
     - name: Clone n8n repository
       git:
